@@ -1,0 +1,72 @@
+awg:
+  max_sample_depth: 256 # KSamples
+  amplitude_multiplier: 1 #scales all other data-sourced amplitude modulations
+
+system:
+  ### Mode ### PPM-like data or QKD type data
+  mode: regular #options are "ppm" or "regular"
+  laser_rate: 20 # GHz
+  divider: 8 # set to -1 for automatic divider.
+
+pulse:
+  sigma: 0.1 # ratio of 1 laser period
+  high_time: 0.1 # ratio of 1 laser period
+
+
+
+
+regular: #used if system.mode  is set to "regular"
+  # options are "data" to modulate like the sequences below, or
+  # 'simple' to maker a perfecly periodic pulse sequence
+  regular_mode: data
+  2nd_channel_delay: 0 #samples divided by sample rate in GSamples/s
+  data:
+    data_source: int #options are 'int' to use int_data below or 'ext' for loading binary file
+    int_data1: [1,0,1,1,0,1,0,1,1,0,1,1,0,1,0,0,0]
+    int_data2: [1,0,1,0,0,1,1,1,0,1,0,1,0,0,1,0,1]
+    case_1-0: 1 # ch1 amplitude when data1=1 and data2=0
+    case_0-1: 1 # ch2 amplitude when data1=0 and data2=1
+    case_1-1: 0.5 # data1=1 and data2=1 (phase basis)
+    2nd_channel_delay: 33.05 #samples divided by sample rate in GSamples/s
+    pulse_divider: 10 # for example, pulse_divider = 10 modulates every 10th pulse on taking 20GHz laser to 2 GHz
+
+
+ppm: #used if mode is set to "ppm"
+  m_value: 2048
+  minimum_dead_time: 250 # nanoseconds
+
+  ### Extension Mode ###
+  # OP1: maximum data & minimum sequence length
+  # OP2: maximum data & maximum sequence length (can help with timetagg analysis)
+  extension_mode: OP2
+
+  2nd_channel_delay: 28700 #samples divided by sample rate in GSamples/s
+  padding: 0
+  data:
+    data_source: ext #options are 'int' to use int_data below or 'ext' for loading binary file
+    #int_data: [261, 367, 29, 476, 255, 53, 160, 115, 380, 480, 252, 389]
+    int_data: [0,200,12,0,4000,0, 53, 160, 115, 380, 480, 252, 389]
+
+    str_data: |
+
+              To be, or not to be, that is the question.
+              Whether 'tis nobler in the mind to suffer
+              The slings and arrows of outrageous fortune,
+              Or to take arms against a sea of troubles
+              And by opposing end them. To die, to sleep,
+              No more; and by a sleep to say we end
+              The heart-ache and the thousand natural shocks
+              That flesh is heir to 'tis a consummation
+              Devoutly to be wish'd.
+
+
+
+
+Output:
+  file_save: True
+  clock_gen: True
+  save_path: .\tempSave\
+
+
+
+
