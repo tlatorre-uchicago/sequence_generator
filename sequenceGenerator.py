@@ -43,7 +43,7 @@ def lcm(x, y):
 
 def determine_ppm_properties(params):
     """
-    The sequence length must be chosen carefully for several reason. First, it must be a multiple of 128
+    The sequence length must be chosen carefully for several reasons. First, it must be a multiple of 128
     due to hardware limitations of the M8196 AWG. Second, it must be a multiple of some number of samples
     that take the same amount of time to run as some other integer number of laser pulses. Often this isn't
     complicated, say if the laser rep rate is 20GHz and the AWG runs at 80Gsps. Then 4 samples pass for each
@@ -131,25 +131,31 @@ def determine_ppm_properties(params):
     return params
 
 
-def determine_regular_properties(params):
+def determine_regular_properties(params, cycles = None):
     """
     The main difference between this and determine_ppm_properties is that regular sequences are
     not extended. Here, the attempt is made to pick a sequence length that repeats perfectly so
     all dead-times are the same, or the modulated 'on' pulse-rate is constant. There isn't a pulse at the
     end of the sequence that has no dead-time, or a dead-time that is too long.
     """
-    sample_rate = params["system"]["sync_rate"]*32
-    print("sample_rate", sample_rate)
-    # say, for example, laser rep rate is 20GHz and divider is 7
-    # ((20GHz/7)*32)/20 is just 32/7 so pulse discretization is 7
-    # sample discretization is the numerator of 32/7, so it's always 32
-    pulses_disc = params["system"]["divider"]
-    samples_disc = 32
+    if params["system"]["sample_rate_override"] == -1:
+        sample_rate = params["system"]["sync_rate"]*32
+        # say, for example, laser rep rate is 20GHz and divider is 7
+        # ((20GHz/7)*32)/20 is just 32/7 so pulse discretization is 7
+        # sample discretization is the numerator of 32/7, so it's always 32
+        pulses_disc = params["system"]["divider"]
+        samples_disc = 32
 
-    print("samples_disc", samples_disc)
-    print("pulses_disc", pulses_disc)
-    # there must be integer number of pulses in each PPM cycle.
-    minimum_dead_time = params["ppm"]["minimum_dead_time"]
+        print("samples_disc", samples_disc)
+        print("pulses_disc", pulses_disc)
+    else:
+        # override mode
+        sample_rate = params["system"]["sample_rate_override"]
+        samples_disc = int(sample_rate/params["system"]["laser_rate"])
+        pulses_disc = 1
+
+
+    print("sample_rate", sample_rate)
     laser_time = 1/(params["system"]["laser_rate"]*1e9) # laser period in seconds
     print(laser_time)
 
@@ -195,10 +201,11 @@ def determine_regular_properties(params):
     # print("max valid pulses: ", max_valid_pulses)
 
     #OUTPUT
-    cycles = max_valid_pulses/pulses_per_cycle # should be an integer
-    print("cycles: ", cycles)
+    if cycles is None:
+        cycles = max_valid_pulses/pulses_per_cycle # should be an integer
+        print("cycles: ", cycles)
+
     # pulses_per_cycle doesn't have to be a multiple of pulse_set. But cycles*pulses_per_cycle should be
-    # print("cycles: ", cycles)
     # data_pulses is number of pulses that are either part of PPM word or deadtime.
 
 
@@ -229,10 +236,8 @@ def gaussian(sigma, center, time):
 
 # need sequence length, cycleTime, laserTime in sequence class
 
-
-
-#in the future I might want to have different hightimes for pulses that are in the center of samples. Or vice versa.
-#then every pulse should have its own object. So that a special method could be written that
+# in the future I might want to have different hightimes for pulses that are in the center of samples. Or vice versa.
+# then every pulse should have its own object. So that a special method could be written that handles those cases.
 class pulse():
     def __init__(self, hightime, risetime, center, sampleTime, amplitude, laserTime):
         self.hightime = hightime*laserTime
@@ -274,7 +279,7 @@ class pulse():
         minRightAmplitude = 1
         req = 0
 
-        # this should go inside the pulse class
+
         # write the pulse to the list iterating out from near the center
         while minLeftAmplitude > .002 or minRightAmplitude > .002:
             # print("location of pulse between indexes:", pulse_time/sampleTime)
@@ -411,62 +416,16 @@ class PulseSequence():
                       delaySamples, "samples.")
 
 
-    # don't know what to do with this.
-    # def plot_sequence_portion(self, start, end):
-    #
-    #     figure_size = (8, 3)
-    #     fig = plt.figure(figsize=figure_size)
-    #     border = 0.07
-    #     spacing = 0.12
-    #     height = (1 - 2 * border - spacing) / 2
-    #     width = 1 - 2 * border
-    #
-    #     ax2_size = [border, border,
-    #                 width, height]
-    #     ax1_size = [border, border + height + spacing,
-    #                 width, height]
-    #
-    #     ax1 = fig.add_axes(ax1_size)
-    #     ax2 = fig.add_axes(ax2_size, sharex=ax1)
-    #
-    #     plt.figure(self.figcount)
-    #     self.figcount = self.figcount + 1
-    #     if end == -1:
-    #         endseq = len(self.sequence1) - 1
-    #     else:
-    #         endseq = end
-    #
-    #     x = np.arange(start,endseq)*self.sampleTime*1e9
-    #     initialTime = x[0]
-    #
-    #     # add some lines to show where laser pulses lie w.r.t the modulation
-    #     timesRange = (np.arange(1,20) - 10)*self.laserTime*1e9
-    #     for time in self.times:
-    #         pulseTimes = time*1e9 + timesRange
-    #         for pulseTime in pulseTimes:
-    #             ax1.axvline(pulseTime, color='k',alpha = 0.1)
-    #
-    #
-    #     for st,en in zip(self.symbol_start1,self.symbol_end1):
-    #         ax1.axvspan(st*1e9, en*1e9, alpha = 0.05)
-    #         ax1.axvspan(st*1e9, en*1e9, alpha=0.05)
-    #
-    #
-    #     y1 = np.array(self.sequence1[start:end])
-    #     y2 = np.array(self.sequence2[start: end])
-    #     ax1.plot(x,y1)
-    #     ax2.plot(x, y2)
-    #     ax1.set_title("Channel 1")
-    #     ax2.set_title("Channel 2")
-    #     ax2.set_label("time (ns)")
-    #     ax1.set_ylim(top=1.2)
-    #     ax2.set_ylim(top=1.2)
+
 
     def plot_sequence_portion(self, start, end, linking_axis = None, title = None):
         if end == -1:
-            endseq = len(self.sequence1) - 1
+            endseq = len(self.sequence)
         else:
-            endseq = end
+            if end > len(self.sequence):
+                endseq = len(self.sequence)
+            else:
+                endseq = end
 
         # the main data ##############
         source = ColumnDataSource(data=dict(
@@ -842,13 +801,18 @@ def main():
 
         # PulseSeq.plot_some_pulses(3)
     elif params["system"]["mode"] == "regular":
-        determine_regular_properties(params)  # sequence length, number of pulses, etc.
+
         if params["regular"]["data"]["data_source"] == "int":
             data1 = params["regular"]["data"]["int_data1"]
             data2 = params["regular"]["data"]["int_data2"]
         else:
             # TODO
             pass
+        if params["regular"]["extend_sequence"]:
+            determine_regular_properties(params)
+        else:
+            # no extension. set number of cycles to length of data
+            determine_regular_properties(params, cycles=len(data1))  # sequence length, number of pulses, etc.
         clear_output_folder(params["Output"]["save_path"])
         manage_regular(params, data1, data2)
     else:
