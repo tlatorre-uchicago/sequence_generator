@@ -26,7 +26,19 @@ from bokeh.models import Span, BoxAnnotation, ColumnDataSource
 import phd.viz as viz
 Colors, pallet = viz.bokeh_theme(return_color_list=True)
 
+from pathlib import Path
 
+def save_csv(sequences, channels, filename):
+    arrays = [seq.sequence for seq in sequences]
+
+    with open(Path("Z:/qdemo/sequences/test.csv"), "w") as f:
+        f.write("test\n")
+
+    with open(Path(filename), 'w', newline='') as f:
+        f.write("SampleRate = %.3f GHz\r\n" % (1e-9/sequences[2].sampleTime))
+        f.write(','.join(["Y%i" % channel for channel in channels]) + '\r\n')
+        writer = csv.writer(f)
+        writer.writerows(zip(*arrays))
 
 def lcm(x, y):
    # choose the greater number
@@ -241,6 +253,7 @@ def gaussian(sigma, center, time):
 class pulse():
     def __init__(self, hightime, risetime, center, sampleTime, amplitude, laserTime):
         self.hightime = hightime*laserTime
+        print("self.hightime = ", self.hightime)
         self.risetime = risetime*laserTime
         self.center = center
         self.sampleTime = sampleTime
@@ -325,8 +338,7 @@ class pulse():
                   " in slot " + str(slot_))
         plt.show()
 
-
-class PulseSequence():
+class PulseSequence(object):
     def __init__(self, params, time_data = None,amp_data = None, clock_sequence = False):
         self.params = params
         if time_data is None and amp_data is not None:
@@ -418,18 +430,18 @@ class PulseSequence():
 
 
 
-    def plot_sequence_portion(self, start, end, linking_axis = None, title = None):
-        if end == -1:
-            endseq = len(self.sequence)
+    def plot_sequence_portion(self, start, end=None, linking_axis = None, title = None):
+        if end is None:
+            end = len(self.sequence)
         else:
             if end > len(self.sequence):
-                endseq = len(self.sequence)
+                end = len(self.sequence)
             else:
-                endseq = end
+                end = end
 
         # the main data ##############
         source = ColumnDataSource(data=dict(
-            x=np.arange(start, endseq) * self.sampleTime * 1e9,
+            x=np.arange(start, end) * self.sampleTime * 1e9,
             y=np.array(self.sequence[start:end])
         ))
         TOOLTIPS = [
@@ -559,6 +571,7 @@ class PulseSequence():
         self.zero_sequence = [0]*len(self.sequence)
 
         with open(full_path_csv, 'w', newline='') as f:
+            f.write("SampleRate = %.3f GHz\n" % (1e-9/self.sampleTime))
             writer = csv.writer(f)
             writer.writerows(zip(self.sequence, self.zero_sequence))
 
@@ -643,8 +656,8 @@ def manage_ppm(ppm_dict, data):
             channel_2.save_bin8(path, 'CH2', today_now, sequence_number=i)
             clock.save_bin8(path, 'CLK', today_now, sequence_number=i)
             channel_1.saveParams(i)  # just save params for the first file
-    s1 = channel_1.plot_sequence_portion(0,50000)
-    s2 = channel_2.plot_sequence_portion(0, 50000, linking_axis=s1.x_range)
+    s1 = channel_1.plot_sequence_portion(0,5000)
+    s2 = channel_2.plot_sequence_portion(0,5000, linking_axis=s1.x_range)
     output_file("graphs.html")
     show(column(s1,s2))
 
@@ -677,6 +690,7 @@ def manage_regular(reg_dict, reg_data1, reg_data2):
                                                  reg_dict["regular"]["data"]["case_1-1"])
         channel_1 = PulseSequence(reg_dict, amp_data = array1)
         channel_2 = PulseSequence(reg_dict, amp_data = array2)
+        clock = PulseSequence(reg_dict, clock_sequence=True)
 
         channel_1.generate_times_list()
         channel_2.generate_times_list()
@@ -704,6 +718,7 @@ def manage_regular(reg_dict, reg_data1, reg_data2):
             # PulseSeq.saveSimple(path, 1, 'CH1', today_now, sequence_number = i)
             channel_1.save_csv(path, 'CH1', today_now, sequence_number=i,save_file_params=True)
             channel_2.save_csv(path, 'CH2', today_now, sequence_number=i)
+            save_csv([clock,clock,channel_1,channel_2],[1,2,3,4],'Z:/qdemo/sequences/sequence.csv')
             channel_1.saveParams(i)  # just save params for the first file
 
         # TODO
