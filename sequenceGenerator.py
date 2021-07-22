@@ -584,7 +584,6 @@ class PulseSequence(object):
         self.zero_sequence = [0]*len(self.sequence)
 
         with open(full_path_csv, 'w', newline='') as f:
-            f.write("SampleRate = %.3f GHz\n" % (1e-9/self.sampleTime))
             writer = csv.writer(f)
             writer.writerows(zip(self.sequence, self.zero_sequence))
 
@@ -669,8 +668,8 @@ def manage_ppm(ppm_dict, data):
             channel_2.save_bin8(path, 'CH2', today_now, sequence_number=i)
             clock.save_bin8(path, 'CLK', today_now, sequence_number=i)
             channel_1.saveParams(i)  # just save params for the first file
-    s1 = channel_1.plot_sequence_portion(0,5000)
-    s2 = channel_2.plot_sequence_portion(0,5000, linking_axis=s1.x_range)
+    s1 = channel_1.plot_sequence_portion(0,50000)
+    s2 = channel_2.plot_sequence_portion(0, 50000, linking_axis=s1.x_range)
     output_file("graphs.html")
     show(column(s1,s2))
 
