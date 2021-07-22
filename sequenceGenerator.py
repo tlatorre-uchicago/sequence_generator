@@ -27,18 +27,31 @@ import phd.viz as viz
 Colors, pallet = viz.bokeh_theme(return_color_list=True)
 
 from pathlib import Path
+from os.path import join
 
-def save_csv(sequences, channels, filename):
-    arrays = [seq.sequence for seq in sequences]
+def save_multi_csv(pulse_sequences, channels, filename):
+    """
+    Saves multiple pulse sequences in a single CSV file and writes header
+    information so that the Keysight AWG knows which channels correspond to
+    which columns. Also writes the sample rate in the header.
+    """
+    sample_times = [seq.sampleTime for seq in pulse_sequences]
 
-    with open(Path("Z:/qdemo/sequences/test.csv"), "w") as f:
-        f.write("test\n")
+    if len(set(sample_times)) > 1:
+        raise ValueError("All pulse sequences must have the same sample time!")
 
+    sample_rate = 1.0/sample_times[0]
+
+    # Use pathlib.Path since we are using Python 3 and it makes filenames much
+    # easier to work with on Windows.
     with open(Path(filename), 'w', newline='') as f:
-        f.write("SampleRate = %.3f GHz\r\n" % (1e-9/sequences[2].sampleTime))
+        if sample_rate > 1e9:
+            f.write("SampleRate = %.3f GHz\r\n" % (sample_rate/1e9))
+        else:
+            f.write("SampleRate = %.3f MHz\r\n" % (sample_rate/1e6))
         f.write(','.join(["Y%i" % channel for channel in channels]) + '\r\n')
         writer = csv.writer(f)
-        writer.writerows(zip(*arrays))
+        writer.writerows(zip(*[seq.sequence for seq in pulse_sequences]))
 
 def lcm(x, y):
    # choose the greater number
@@ -350,6 +363,7 @@ class PulseSequence(object):
         elif clock_sequence is True:
             self.sequence = np.zeros(params["total_samples"])
             self.sequence[0:params["total_samples"]//10] = 1
+            self.sampleTime = params["sample_time"]
             return # clock sequences don't need further set up
         else:
             print("expected either time_data or amp_data or a True val for clock_sequence. Exiting. ")
@@ -718,7 +732,9 @@ def manage_regular(reg_dict, reg_data1, reg_data2):
             # PulseSeq.saveSimple(path, 1, 'CH1', today_now, sequence_number = i)
             channel_1.save_csv(path, 'CH1', today_now, sequence_number=i,save_file_params=True)
             channel_2.save_csv(path, 'CH2', today_now, sequence_number=i)
-            save_csv([clock,clock,channel_1,channel_2],[1,2,3,4],'Z:/qdemo/sequences/sequence.csv')
+            # Write out clock signals to the first two channels and the qubit
+            # sequence to channels 3 and 4
+            save_multi_csv([clock,clock,channel_1,channel_2],[1,2,3,4],join(path,'sequence.csv'))
             channel_1.saveParams(i)  # just save params for the first file
 
         # TODO
