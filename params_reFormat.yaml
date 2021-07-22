@@ -6,13 +6,13 @@ system:
   ### Mode ### PPM-like data or QKD type data
   mode: regular #options are "ppm" or "regular"
   laser_rate: 6.125 # GHz
-  divider: 1 # set to -1 for automatic divider.
+  divider: 8 # set to -1 for automatic divider.
   sample_rate_override: 91.875 # GSamples/s. set to -1 for automatic sample rate (Clock input range 3)
   # note: as of 7.20.2021, usage of sample_rate_override assumes sample rate is an integer multiple of laser rep rate
 
 pulse:
-  sigma: 0.01 # ratio of 1 laser period
-  high_time: 0.9 # ratio of 1 laser period
+  sigma: 0.1 # ratio of 1 laser period
+  high_time: 0.1 # ratio of 1 laser period
 
 
 
@@ -22,15 +22,15 @@ regular: #used if system.mode  is set to "regular"
   # 'simple' to maker a perfecly periodic pulse sequence
   regular_mode: data
   2nd_channel_delay: 0 #[samples] divided by [sample rate in GSamples/s] (equivalent to nanoseconds)
-  extend_sequence: True #options are True or False. True writes dead time  (zeros) up to the maximum valid sequence length
+  extend_sequence: False #options are True or False. True writes dead time  (zeros) up to the maximum valid sequence length
   data:
     data_source: int #options are 'int' to use int_data below or 'ext' for loading binary file
-    int_data1: [1,0,0,0,1,0,1,0,1,0,1,0,1,0,1,1,1]
-    int_data2: [0,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0,0]
+    int_data1: [1,0,1,1,0,1,0,1,1,0,1,1,0,1,0,0,0]
+    int_data2: [1,0,1,0,0,1,1,1,0,1,0,1,0,0,1,0,1]
     case_1-0: 1 # ch1 amplitude when data1=1 and data2=0
     case_0-1: 1 # ch2 amplitude when data1=0 and data2=1
     case_1-1: 0.5 # data1=1 and data2=1 (phase basis)
-    pulse_divider: 1 # for example, pulse_divider = 10 modulates every 10th pulse on taking 20GHz laser to 2 GHz
+    pulse_divider: 10 # for example, pulse_divider = 10 modulates every 10th pulse on taking 20GHz laser to 2 GHz
 
 
 ppm: #used if mode is set to "ppm"
@@ -67,7 +67,7 @@ ppm: #used if mode is set to "ppm"
 Output:
   file_save: True
   clock_gen: True
-  save_path: Z:\qdemo\sequences
+  save_path: .\tempSave\
 
 
 

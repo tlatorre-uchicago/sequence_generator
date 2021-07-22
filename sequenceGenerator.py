@@ -266,7 +266,6 @@ def gaussian(sigma, center, time):
 class pulse():
     def __init__(self, hightime, risetime, center, sampleTime, amplitude, laserTime):
         self.hightime = hightime*laserTime
-        print("self.hightime = ", self.hightime)
         self.risetime = risetime*laserTime
         self.center = center
         self.sampleTime = sampleTime
