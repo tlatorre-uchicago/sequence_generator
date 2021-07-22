@@ -26,7 +26,32 @@ from bokeh.models import Span, BoxAnnotation, ColumnDataSource
 import phd.viz as viz
 Colors, pallet = viz.bokeh_theme(return_color_list=True)
 
+from pathlib import Path
+from os.path import join
 
+def save_multi_csv(pulse_sequences, channels, filename):
+    """
+    Saves multiple pulse sequences in a single CSV file and writes header
+    information so that the Keysight AWG knows which channels correspond to
+    which columns. Also writes the sample rate in the header.
+    """
+    sample_times = [seq.sampleTime for seq in pulse_sequences]
+
+    if len(set(sample_times)) > 1:
+        raise ValueError("All pulse sequences must have the same sample time!")
+
+    sample_rate = 1.0/sample_times[0]
+
+    # Use pathlib.Path since we are using Python 3 and it makes filenames much
+    # easier to work with on Windows.
+    with open(Path(filename), 'w', newline='') as f:
+        if sample_rate > 1e9:
+            f.write("SampleRate = %.3f GHz\r\n" % (sample_rate/1e9))
+        else:
+            f.write("SampleRate = %.3f MHz\r\n" % (sample_rate/1e6))
+        f.write(','.join(["Y%i" % channel for channel in channels]) + '\r\n')
+        writer = csv.writer(f)
+        writer.writerows(zip(*[seq.sequence for seq in pulse_sequences]))
 
 def lcm(x, y):
    # choose the greater number
@@ -325,8 +350,7 @@ class pulse():
                   " in slot " + str(slot_))
         plt.show()
 
-
-class PulseSequence():
+class PulseSequence(object):
     def __init__(self, params, time_data = None,amp_data = None, clock_sequence = False):
         self.params = params
         if time_data is None and amp_data is not None:
@@ -338,6 +362,7 @@ class PulseSequence():
         elif clock_sequence is True:
             self.sequence = np.zeros(params["total_samples"])
             self.sequence[0:params["total_samples"]//10] = 1
+            self.sampleTime = params["sample_time"]
             return # clock sequences don't need further set up
         else:
             print("expected either time_data or amp_data or a True val for clock_sequence. Exiting. ")
@@ -418,18 +443,18 @@ class PulseSequence():
 
 
 
-    def plot_sequence_portion(self, start, end, linking_axis = None, title = None):
-        if end == -1:
-            endseq = len(self.sequence)
+    def plot_sequence_portion(self, start, end=None, linking_axis = None, title = None):
+        if end is None:
+            end = len(self.sequence)
         else:
             if end > len(self.sequence):
-                endseq = len(self.sequence)
+                end = len(self.sequence)
             else:
-                endseq = end
+                end = end
 
         # the main data ##############
         source = ColumnDataSource(data=dict(
-            x=np.arange(start, endseq) * self.sampleTime * 1e9,
+            x=np.arange(start, end) * self.sampleTime * 1e9,
             y=np.array(self.sequence[start:end])
         ))
         TOOLTIPS = [
@@ -677,6 +702,7 @@ def manage_regular(reg_dict, reg_data1, reg_data2):
                                                  reg_dict["regular"]["data"]["case_1-1"])
         channel_1 = PulseSequence(reg_dict, amp_data = array1)
         channel_2 = PulseSequence(reg_dict, amp_data = array2)
+        clock = PulseSequence(reg_dict, clock_sequence=True)
 
         channel_1.generate_times_list()
         channel_2.generate_times_list()
@@ -704,6 +730,9 @@ def manage_regular(reg_dict, reg_data1, reg_data2):
             # PulseSeq.saveSimple(path, 1, 'CH1', today_now, sequence_number = i)
             channel_1.save_csv(path, 'CH1', today_now, sequence_number=i,save_file_params=True)
             channel_2.save_csv(path, 'CH2', today_now, sequence_number=i)
+            # Write out clock signals to the first two channels and the qubit
+            # sequence to channels 3 and 4
+            save_multi_csv([clock,clock,channel_1,channel_2],[1,2,3,4],join(path,'sequence.csv'))
             channel_1.saveParams(i)  # just save params for the first file
 
         # TODO
